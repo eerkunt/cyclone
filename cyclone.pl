@@ -16,7 +16,7 @@
 #                                                       Added last topology change output on exit
 # 0.0.4                 EErkunt         20150112        Added some minor color coding
 # 0.0.5                 EErkunt         20150113        Added password masquearing via STDIN
-# 0.0.6                 EErkunt         20150113        Added HUAWEI vendor capability 
+# 0.0.6                 EErkunt         20150113        Added HUAWEI vendor capability
 # 0.0.7                 EErkunt         20150113        Showing flap logs at exit if captured any
 # 0.0.8                 EErkunt         20150115        Fixed password problem, shows w/out stars
 # 0.0.9                 EErkunt         20150126        Color scheme standardized
@@ -31,12 +31,10 @@ use Graph::Easy;
 use LWP::UserAgent;
 use HTTP::Headers;
 use LWP::Simple;
-use Statistics::Lite qw(:all);
 use LWP::UserAgent;
 use Win32::Console::ANSI;
 use Term::ANSIColor;
 use Net::SNMP qw( :snmp DEBUG_ALL ENDOFMIBVIEW );
-use Data::Dumper;
 use IO::Prompter;
 use Term::ReadPassword::Win32;
 
@@ -63,13 +61,13 @@ $SIG{TERM} = \&interrupt;
 
 my $time = time();
 
-my $svnrepourl  = "http://10.34.219.5/repos/scripts/cyclone/"; # Do not forget the last /
-my $SVNUsername = "coad";
-my $SVNPassword = "hcas71nvc!";
+my $svnrepourl  = ""; 												# Your private SVN Repository (should be served via HTTP). Do not forget the last /
+my $SVNUsername = "";													# Your SVN Username
+my $SVNPassword = "";													# Your SVN Password
 my $SVNScriptName = "cyclone.pl";
 my $SVNFinalEXEName = "cyclone";
 our $SNMPVersion = "2";
-our $SNMPCommunity = 'bil678&%tel';
+our $SNMPCommunity = '';											# SNMP Community
 
 unlink('upgrade'.$SVNFinalEXEName.'.bat');
 
@@ -93,7 +91,7 @@ unless ($opt{n}) {
 			$publicVersion = $1;
 		} elsif ( $line =~ /^# $version                 \w+\s+/g ) {
 			$fetchChangelog = 1;
-		} 
+		}
 		if ( $fetchChangelog eq 1 ) { $changelog .= $line."\n"; }
 	}
 	if ( $version ne $publicVersion and length($publicVersion)) {		# SELF UPDATE INITIATION
@@ -169,7 +167,7 @@ if ( $opt{i} =~ /(\d*\.\d*\.\d*\.\d*):(\d*)/ ) {
 	exit 0;
 }
 
-# Get the Password from STDIN 
+# Get the Password from STDIN
 #
 $opt{p} = read_password('Enter your password : ') unless ($opt{p});
 
@@ -184,10 +182,10 @@ print "Process took ".(time()-$time)." seconds.\n"   if($opt{v});
 
 if ( scalar(keys(%flapDB)) ) {
 	print "\nIt seems that I captured some flap logs from NEs.";
-	
+
 	my $selection = 1;
 	my $question = 'Would you like to see them ?';
-	
+
 	while ( $selection ne 0 ) {
 		$selection
 			= prompt $question,
@@ -195,7 +193,7 @@ if ( scalar(keys(%flapDB)) ) {
 					'Yes, let me pick the IP.' => [ keys(%flapDB) ],
 					"No, I don't want to see." => 0,
 			  }, '>';
-			  
+
 		print "\n";
 		if ( $selection ) {
 			print color 'bold yellow';
@@ -209,16 +207,16 @@ if ( scalar(keys(%flapDB)) ) {
 		}
 	}
 }
-	
+
 #
 # Related Functions
 #
 sub huntForCyclones() {
 	my $IP = shift;
 	my $VLAN = shift;
-	
+
 	push(@hunted, $IP);	$index++;
-	
+
 	#
 	# Initiate SNMP Object first
 	my ($session, $error) = Net::SNMP->session(
@@ -229,7 +227,7 @@ sub huntForCyclones() {
                           -community     => $SNMPCommunity,
                           -translate     => [-octetstring => 0],
                         );
-	
+
 	if ( !defined($session) ) {
 		print color "bold red";
 		print "ERROR: ";
@@ -238,9 +236,9 @@ sub huntForCyclones() {
 		return 0;
 	}
 	#
-	
+
 	my $STDOUT, @cmdSet, @regex;
-	
+
 	#
 	# Identify Vendor and CI Name of Remote host
 	my $vendorName = getSnmpOID( $session, '1.3.6.1.2.1.1.1.0' );
@@ -255,7 +253,7 @@ sub huntForCyclones() {
 		$regex[1] = '';
 		$cmdSet[11] = 'display lldp neighbor int _INTERFACE_ | i Management add';
 		$regex[11] = 'Management address\s*: (\d*\.\d*\.\d*.\d*)';
-		$cmdSet[2] = ''; 
+		$cmdSet[2] = '';
 		$regex[2] = '';
 		$cmdSet[3] = 'display stp topology-change | i Time since last topology change';
 		$regex[3] = '\s*Time since last topology change\s*:(.*)';
@@ -268,7 +266,7 @@ sub huntForCyclones() {
 		$regex[10] = '\s*Members in this channel: (\w+\d*\/\d*)\s.*';
 		$cmdSet[1] = 'sh cdp neighbors _INTERFACE_ detail | i IP add';
 		$regex[1] = '\s*IP address: (\d*\.\d*\.\d*.\d*)';
-		$cmdSet[11] = 'sh lldp neighbors _INTERFACE_ detail | i IP'; 
+		$cmdSet[11] = 'sh lldp neighbors _INTERFACE_ detail | i IP';
 		$regex[11] = '\s*IP: (\d*\.\d*\.\d*\.\d*)';
 		$cmdSet[2] = 'sh log | i flap';
 		$regex[2] = '.*: (.*)';
@@ -296,7 +294,7 @@ sub huntForCyclones() {
 	print "[$IP]"; # ($vendorName)";# \t$ciName";
 	print color "reset";
 	if ( $ciName =~ /nw_rt.*/ ) { $nwrtIndex++; }
-	
+
 	if ( $index > 2 and $ciName =~ /nw_rt.*/ and $nwrtIndex > 1 ) {
 		print color 'bold green';
 		print " <-- ";
@@ -304,7 +302,7 @@ sub huntForCyclones() {
 		print "Reached backbone!\n";
 		return 1;
 	}
-	
+
 	my @tcKeys = keys (%tcs);
 	if ( in_array(@tcKeys, $IP) ) {
 		print color 'bold red';
@@ -316,12 +314,12 @@ sub huntForCyclones() {
 	# print "Array : ";
 	# print Dumper(%tcs);
 	# print "( ".in_array(@tcKeys, $IP).", ".scalar(@tcKeys)." ".$tcKeys[scalar(@tcKeys)-1]." ) ";
-	#	
-	
+	#
+
 	my $prompt = authenticate($IP, $vendorName);
 	if ( $prompt ) {
 		print "[$IP:$VLAN] Authenticated!\n" if ( $opt{debug} );
-		
+
 		# Grab the flapping log first.
 		print "[$IP:$VLAN] Running CMD : $cmdSet[2] with prompt $prompt ( filter with : $regex[2] )\n"  if ( $opt{debug} );
 		my @return = $obj{$IP}->cmd(String => $cmdSet[2], Prompt => $prompt) or die($object->errmsg);
@@ -348,7 +346,7 @@ sub huntForCyclones() {
 				print "[$IP:$VLAN] UNIQUE FLAP LOG : $flap\n" if ($opt{debug});
 			}
 		}
-		
+
 		# Grab the last topology change duration
 		my $lastTCString = runRemoteCommand($obj{$IP}, $cmdSet[3], $prompt, $regex[3]);
 		my $lastTCSeconds = stringToSeconds($lastTCString);
@@ -359,8 +357,8 @@ sub huntForCyclones() {
 			print "[$IP:$VLAN] Too short duration for topology change : $lastTCSeconds seconds.\n" if ($opt{debug});
 			$STDOUT .= "[! TC $lastTCSeconds secs !] ";
 			$tcs{$IP} = $lastTCSeconds;
-		}	
-		
+		}
+
 		# Lets find the related interface first ;
 		my $STPItf = runRemoteCommand($obj{$IP}, $cmdSet[0], $prompt, $regex[0]);
 		if ( $STPItf ) {
@@ -377,7 +375,7 @@ sub huntForCyclones() {
 			$STDOUT .= color "yellow";
 			$STDOUT .= "$changedSTPItf)";
 			$STDOUT .= color "reset";
-			
+
 			$cmdSet[1] =~ s/_INTERFACE_/$STPItf/g;
 			my $neighBourIP = runRemoteCommand($obj{$IP}, $cmdSet[1], $prompt, $regex[1]);
 			if (!$neighBourIP) {
@@ -432,7 +430,7 @@ sub huntForCyclones() {
 	} else {
 		$STDOUT .= " (Username/Password Problem)";
 	}
-	
+
 	print " ".$STDOUT."\n";
 }
 
@@ -441,7 +439,7 @@ sub runRemoteCommand( $ $ $ $ ) {
 	my $cmd = shift;
 	my $prompt = shift;
 	my $regex = shift;
-	
+
 	print "Running CMD : $cmd with prompt $prompt ( filter with : $regex )\n"  if ( $opt{debug} );
 	my @return = $object->cmd(String => $cmd, Prompt => $prompt) or die($object->errmsg);
 	foreach my $line (@return) {
@@ -450,19 +448,19 @@ sub runRemoteCommand( $ $ $ $ ) {
 			print "Match Regex : $1\n" if ( $opt{debug} );
 			return $1;
 		}
-	}	
+	}
 }
 
 sub authenticate() {
 	my $targetIP = shift;
 	my $vendorName = shift;
-		
+
 	my @initialCommands, @prompt, $loginPrompt;
 	my $timeOut = 5;
-	
+
 	$obj{$targetIP} = new Net::Telnet ( Timeout => 20 );
 	$obj{$targetIP}->open($targetIP);
-	
+
 	if ( $vendorName eq "huawei" ) {
 		$initialCommands[0] = "system-view";
 		$prompt[0] = '/]$/';
@@ -475,12 +473,12 @@ sub authenticate() {
 		$initialCommands[4] = "screen-length 0 temporary";
 		$prompt[4] = '/<.*>$/';
 		$loginPrompt = '/<.*>$/';
-		
+
 		#
 		# RFC 1037 Hack for stupid Huawei Telnet Service forcing us to use 80 chars width
 		$obj{$targetIP}->option_callback(sub { return; });
         $obj{$targetIP}->option_accept(Do => 31);
-		
+
 		$obj{$targetIP}->telnetmode(0);
         $obj{$targetIP}->put(pack("C9",
 		              255,					# TELNET_IAC
@@ -488,7 +486,7 @@ sub authenticate() {
 		              31, 0, 500, 0, 0,		# TELOPT_NAWS
 		              255,					# TELNET_IAC
 		              240));				# TELNET_SE
-        $obj{$targetIP}->telnetmode(1);	
+        $obj{$targetIP}->telnetmode(1);
 		# idiots..
 		#
 	} elsif ( $vendorName eq "cisco" ) {
@@ -496,16 +494,16 @@ sub authenticate() {
 		$prompt[0] = '/#$/';
 		$loginPrompt = '/#$/';
 	}
-	
+
 	if ($obj{$targetIP}->login( Name => $opt{u}, Password => $opt{p}, Prompt => $loginPrompt, Timeout => $timeOut )) {
-	
+
 		# Fixing screen buffering problems
 		for(my $i=0;$i < scalar(@initialCommands);$i++) {
 			print "Running '$initialCommands[$i]' with prompt $prompt[$i] : " if ($opt{debug});
 			$obj{$targetIP}->cmd(String => $initialCommands[$i], Prompt => $prompt[$i]);
 			print "Ok!\n" if ($opt{debug});
-		}	
-		
+		}
+
 		return $loginPrompt;
 	} else {
 		return 0;
@@ -519,7 +517,7 @@ sub uniq {
 
 sub in_array {
      my ($arr,$search_for) = @_;
-     my %items = map {$_ => 1} @$arr; 
+     my %items = map {$_ => 1} @$arr;
      return (exists($items{$search_for}))?1:0;
 }
 
@@ -529,12 +527,12 @@ sub getSnmpOID ( $ $ ) {
 
 	print "[".$session->hostname()."] Querying $OID : " if ($opt{debug});
 	my $result = $session->get_request(-varbindlist => [ $OID ],);
-	
+
 	if (!defined $result and $opt{debug}) {
 		printf "ERROR: %s.\n", $session->error();
 		return 0;
 	}
- 
+
 	print $result->{$OID}."\n"  if ($opt{debug});
 	return $result->{$OID};
 }
@@ -542,18 +540,18 @@ sub getSnmpOID ( $ $ ) {
 sub stringToSeconds {
 	my $string = shift;
 	my $output = -1;
-	
+
 	if ( $string =~ /(\d+) days (\d+)h:(\d+)m:(\d+)s/ ) {
 		$output = (($1*86400)+($2*3600)+($3*60)+$4);
 	} elsif ( $string =~ /(\d+):(\d+):(\d+)/) {
 		$output = (($1*3600)+($2*60)+$3);
-	} 	
+	}
 	return $output;
 }
- 
+
 sub usage {
 		my $usageText = << 'EOF';
-	
+
 This scripts follow up the whole path for given IP and VLAN and tries to identify loops within the path
 
 Author            Emre Erkunt
